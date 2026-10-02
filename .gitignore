@@ -1,0 +1,40 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.env
+
+# System & OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# SQLite databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.venv/
+
+# Processed videos & outputs (keep data/input sample videos if needed)
+data/output/*
+data/reports/*
+!data/output/.gitkeep
+!data/reports/.gitkeep
+
+# Weights
+*.pt
+*.pth
+!models/README.md
+
+# IDE configs
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,56 @@
+# AI-Based Intelligent Traffic Monitoring and Violation Detection System
+# System Configuration
+
+model:
+  name: "yolov8n.pt"           # Default weights (auto-downloaded by Ultralytics)
+  confidence: 0.40             # Minimum confidence threshold (0.0 - 1.0)
+  iou: 0.50                    # NMS IoU threshold (0.0 - 1.0)
+  device: "auto"               # 'auto', 'cpu', or 'cuda' / '0'
+  # Target COCO classes: person(0), bicycle(1), car(2), motorcycle(3), bus(5), truck(7)
+  target_classes:
+    - 0  # person
+    - 1  # bicycle
+    - 2  # car
+    - 3  # motorcycle
+    - 5  # bus
+    - 7  # truck
+
+tracking:
+  tracker_type: "bytetrack.yaml" # Built-in tracker supported by Ultralytics YOLO
+  track_history_len: 30          # Points of center trail retained
+  track_retention_frames: 60     # Frames before inactive track is purged
+
+counting:
+  line_ratio_y: 0.55             # Virtual counting line vertical position (0.0 to 1.0)
+  line_offset: 12                # Buffer margin in pixels for crossing line detection
+  cooldown_frames: 15            # Cooldown per track to prevent duplicate counting
+
+traffic:
+  expected_direction: "RIGHT"    # Configured flow direction: "RIGHT", "LEFT", "UP", "DOWN"
+
+density:
+  low: 20                        # <= 20 vehicles -> LOW
+  medium: 50                     # 21 - 50 vehicles -> MEDIUM; > 50 -> HIGH
+
+congestion:
+  speed_threshold_px: 4.0        # Average movement (px/frame) below which traffic is considered sluggish
+  speed_history_window: 10       # Number of past frames to measure speed trend
+
+wrong_way:
+  enabled: true
+  minimum_movement_pixels: 15    # Minimum net movement before direction is classified
+  confirmation_frames: 5         # Consecutive frames in opposite direction before violation
+  warning_display_seconds: 3.0   # How long visual violation alert stays active
+
+processing:
+  frame_skip: 1                  # Process every Nth frame (1 = process all, 2 = every 2nd frame)
+  resize_width: 1280             # Frame width for inference & rendering (0 or null to keep original)
+  show_trails: true              # Render movement history breadcrumb trails
+  show_boxes: true               # Render bounding boxes and labels
+  show_counting_line: true       # Render virtual counting line
+
+storage:
+  database_path: "data/traffic_system.db"
+  reports_dir: "data/reports"
+  output_video_dir: "data/output"
+  sample_videos_dir: "data/input"

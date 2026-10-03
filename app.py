@@ -3,10 +3,15 @@ AI-Based Intelligent Traffic Monitoring and Violation Detection System.
 Professional AI Traffic Command Center Production Dashboard.
 """
 
-from __future__ import annotations
-
 import os
+import sys
 from pathlib import Path
+
+# Ensure project root directory is prioritized at index 0 of sys.path on Streamlit Cloud
+ROOT_DIR = Path(__file__).resolve().parent
+if sys.path[0] != str(ROOT_DIR):
+    sys.path.insert(0, str(ROOT_DIR))
+
 import streamlit as st
 
 from src.utils import load_config, get_device

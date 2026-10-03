@@ -150,3 +150,7 @@ class DirectionAndWrongWayDetector:
     def is_violating(self, track_id: int) -> bool:
         """Check if vehicle is currently confirmed as a wrong-way violator."""
         return track_id in self.current_violating_ids
+
+
+# Backward compatibility alias
+WrongWayDetector = DirectionAndWrongWayDetector

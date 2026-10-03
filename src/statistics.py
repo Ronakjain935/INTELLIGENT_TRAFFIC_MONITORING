@@ -106,3 +106,7 @@ class TrafficStatistics:
             "most_frequent_class": most_frequent,
             "congestion_summary": congestion_status,
         }
+
+
+# Backward compatibility alias
+summarize_events = TrafficStatistics.compute_summary

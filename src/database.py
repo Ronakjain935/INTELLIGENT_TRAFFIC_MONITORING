@@ -199,6 +199,10 @@ class DatabaseManager:
 
         return counts
 
+    def read_events(self, limit: int = 100, event_type: Optional[str] = None) -> pd.DataFrame:
+        """Alias for get_recent_events to support legacy/standard API."""
+        return self.get_recent_events(limit=limit, event_type=event_type)
+
     def clear_all(self) -> None:
         """Purge all event and statistics tables."""
         with self._get_connection() as conn:
@@ -206,3 +210,7 @@ class DatabaseManager:
             cursor.execute("DELETE FROM traffic_events")
             cursor.execute("DELETE FROM traffic_statistics")
             conn.commit()
+
+
+# Backward compatibility alias
+TrafficDatabase = DatabaseManager

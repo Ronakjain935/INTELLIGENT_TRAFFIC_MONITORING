@@ -166,3 +166,7 @@ class VehicleTracker:
                         del self.track_durations[old_id]
 
         return tracked_objects
+
+
+# Backward compatibility alias
+SimpleCentroidTracker = VehicleTracker

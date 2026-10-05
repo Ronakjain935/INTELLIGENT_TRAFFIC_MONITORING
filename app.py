@@ -163,10 +163,24 @@ if input_option == "Upload Video":
     )
     if uploaded_file is not None:
         file_key = f"upload_{uploaded_file.name}_{uploaded_file.size}"
-        if st.session_state.active_source_id != file_key:
+        save_dir = os.path.join("data", "input")
+        os.makedirs(save_dir, exist_ok=True)
+        clean_name = "".join(c for c in uploaded_file.name if c.isalnum() or c in "._-")
+        cached_file_path = os.path.join(save_dir, f"user_{clean_name}")
+
+        if (
+            st.session_state.get("active_source_id") != file_key
+            or not os.path.exists(cached_file_path)
+            or os.path.getsize(cached_file_path) == 0
+        ):
+            with st.spinner("💾 Saving video file..."):
+                with open(cached_file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
             st.session_state.active_source_id = file_key
             st.session_state.active_source_name = uploaded_file.name
             st.session_state.session_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            st.session_state.uploaded_file_path = cached_file_path
+            # Reset telemetry stats for the new video
             st.session_state.latest_stats = {
                 "fps": 0.0,
                 "active_vehicles": 0,
@@ -183,9 +197,9 @@ if input_option == "Upload Video":
                 "wrong_way_count": 0,
                 "active_violations": [],
             }
-        tfile = tempfile.NamedTemporaryFile(delete=False, suffix=f"_{uploaded_file.name}")
-        tfile.write(uploaded_file.read())
-        video_source_path = tfile.name
+            st.session_state.processor = None
+
+        video_source_path = st.session_state.get("uploaded_file_path", cached_file_path)
 elif input_option == "Sample Video":
     sample_path = "data/input/sample_traffic.mp4"
     if st.session_state.active_source_id != "sample_video":
@@ -251,8 +265,15 @@ counting_line_ratio = st.sidebar.slider(
 frame_skip = st.sidebar.select_slider(
     "Processing Frame Skip",
     options=[1, 2, 3],
-    value=int(st.session_state.config.get("processing", {}).get("frame_skip", 1)),
-    help="1 = Full frame-by-frame; 2 = Every 2nd frame (2x faster for CPU).",
+    value=int(st.session_state.config.get("processing", {}).get("frame_skip", 2)),
+    help="1 = Full frame-by-frame; 2 = Every 2nd frame (2x faster for CPU); 3 = Fast CPU mode.",
+)
+
+resize_width = st.sidebar.select_slider(
+    "Inference Resolution Width",
+    options=[480, 640, 960, 1280],
+    value=int(st.session_state.config.get("processing", {}).get("resize_width", 640)),
+    help="640px is optimal for CPU real-time processing (3-4x faster). 1280px provides higher detail.",
 )
 
 st.sidebar.markdown("---")
@@ -309,6 +330,7 @@ st.session_state.config["traffic"]["expected_direction"] = traffic_direction
 st.session_state.config["wrong_way"]["enabled"] = enable_wrong_way
 st.session_state.config["counting"]["line_ratio_y"] = counting_line_ratio
 st.session_state.config["processing"]["frame_skip"] = frame_skip
+st.session_state.config["processing"]["resize_width"] = resize_width
 
 # 5. Top Header & Hardware Badge
 device_str = get_device(st.session_state.config.get("model", {}).get("device", "auto"))
@@ -354,7 +376,16 @@ with tab_live:
 
     # If stream running, loop through frames
     if st.session_state.is_running:
-        processor = VideoProcessor(st.session_state.config, db_manager=st.session_state.db)
+        if "processor" not in st.session_state or st.session_state.processor is None:
+            with st.spinner("⚡ Initializing AI vision engine (YOLOv8 & ByteTrack)..."):
+                st.session_state.processor = VideoProcessor(st.session_state.config, db_manager=st.session_state.db)
+        processor = st.session_state.processor
+        # Sync runtime parameters to processor
+        processor.frame_skip = frame_skip
+        processor.resize_width = resize_width
+        processor.counter.line_ratio_y = counting_line_ratio
+        processor.tracker.confidence = conf_threshold
+        processor.tracker.iou = iou_threshold
 
         # Open video source
         cap = None
@@ -371,6 +402,14 @@ with tab_live:
                 st.session_state.is_running = False
 
         if cap is not None and cap.isOpened():
+            # Verify video stream can be read
+            test_ret, test_frame = cap.read()
+            if not test_ret or test_frame is None:
+                st.error(f"⚠️ Unable to decode video frames from '{st.session_state.get('active_source_name', 'uploaded file')}'. Please ensure the file is a valid video format.")
+                st.session_state.is_running = False
+            else:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
             frame_counter = 0
             while st.session_state.is_running:
                 ret, frame = cap.read()
@@ -452,6 +491,15 @@ with tab_charts:
     stats_df = st.session_state.db.get_statistics_history(limit=100, since_timestamp=since_ts)
     events_df = st.session_state.db.get_recent_events(limit=300, since_timestamp=since_ts)
     summary_data = TrafficStatistics.compute_summary(events_df, stats_df)
+
+    has_active_events = events_df is not None and not events_df.empty
+    has_active_stats = stats_df is not None and not stats_df.empty
+    if data_scope == "Current Video / Active Session" and not has_active_events and not has_active_stats:
+        st.warning(
+            "⏳ **No traffic detections logged for this video session yet.** "
+            "Please navigate to the **🎥 Live Surveillance** tab and click **▶ Start** in the sidebar to begin processing the video stream. "
+            "To view previously logged data instead, switch **Analytics Data Filter** in the sidebar to **All Stored History**."
+        )
 
     g1, g2 = st.columns(2)
     with g1:

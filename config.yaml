@@ -21,8 +21,8 @@ model:
   - 5
   - 7
 processing:
-  frame_skip: 1
-  resize_width: 1280
+  frame_skip: 2
+  resize_width: 640
   show_boxes: true
   show_counting_line: true
   show_trails: true

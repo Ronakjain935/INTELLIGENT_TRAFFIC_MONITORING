@@ -278,10 +278,13 @@ resize_width = st.sidebar.select_slider(
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📊 Analytics Scope & Session")
+if "data_scope_filter" not in st.session_state:
+    st.session_state.data_scope_filter = "Current Video / Active Session"
+
 data_scope = st.sidebar.radio(
     "Analytics Data Filter",
     ("Current Video / Active Session", "All Stored History"),
-    index=0,
+    key="data_scope_filter",
     help="Switch between viewing only metrics for the current uploaded video, or all past records stored in the database.",
 )
 
@@ -497,9 +500,17 @@ with tab_charts:
     if data_scope == "Current Video / Active Session" and not has_active_events and not has_active_stats:
         st.warning(
             "⏳ **No traffic detections logged for this video session yet.** "
-            "Please navigate to the **🎥 Live Surveillance** tab and click **▶ Start** in the sidebar to begin processing the video stream. "
-            "To view previously logged data instead, switch **Analytics Data Filter** in the sidebar to **All Stored History**."
+            "The monitoring stream has not been started, or no vehicles have crossed the virtual tripwire yet."
         )
+        c_act1, c_act2 = st.columns(2)
+        with c_act1:
+            if st.button("▶ Go to Surveillance Feed & Start", type="primary", use_container_width=True):
+                st.session_state.is_running = True
+                st.rerun()
+        with c_act2:
+            if st.button("🌐 Switch to All Stored History", use_container_width=True):
+                st.session_state.data_scope_filter = "All Stored History"
+                st.rerun()
 
     g1, g2 = st.columns(2)
     with g1:

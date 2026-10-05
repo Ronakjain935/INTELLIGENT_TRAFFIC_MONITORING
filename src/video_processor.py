@@ -142,8 +142,8 @@ class VideoProcessor:
         # Step 4: Traffic density & congestion analysis
         traffic_state: TrafficState = self.traffic_analyzer.analyze(tracked_vehicles)
 
-        # Step 5: Periodic snapshot to database (every 30 frames)
-        if self.total_frames_processed - self.last_stat_log_frame >= 30:
+        # Step 5: Periodic snapshot to database (on first frame and every 30 frames)
+        if self.total_frames_processed == 1 or (self.total_frames_processed - self.last_stat_log_frame >= 30):
             counts = self.counter.get_summary()
             self.db.log_statistics(
                 total_vehicles=counts.get("total", 0),

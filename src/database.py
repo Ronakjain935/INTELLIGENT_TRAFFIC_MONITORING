@@ -146,13 +146,26 @@ class DatabaseManager:
             conn.commit()
             return cursor.lastrowid or 0
 
-    def get_recent_events(self, limit: int = 100, event_type: Optional[str] = None) -> pd.DataFrame:
+    def get_recent_events(
+        self,
+        limit: int = 100,
+        event_type: Optional[str] = None,
+        since_timestamp: Optional[str] = None,
+    ) -> pd.DataFrame:
         """Fetch latest logged events as a pandas DataFrame."""
         query = "SELECT id, vehicle_id, vehicle_type, timestamp, direction, event_type, confidence FROM traffic_events"
+        conditions = []
         params: List[Any] = []
         if event_type:
-            query += " WHERE event_type = ?"
+            conditions.append("event_type = ?")
             params.append(event_type)
+        if since_timestamp:
+            conditions.append("timestamp >= ?")
+            params.append(since_timestamp)
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
         query += " ORDER BY id DESC LIMIT ?"
         params.append(limit)
 
@@ -160,20 +173,32 @@ class DatabaseManager:
             df = pd.read_sql_query(query, conn, params=params)
         return df
 
-    def get_violations(self, limit: int = 100) -> pd.DataFrame:
+    def get_violations(self, limit: int = 100, since_timestamp: Optional[str] = None) -> pd.DataFrame:
         """Retrieve specifically wrong-way and safety violation events."""
-        return self.get_recent_events(limit=limit, event_type="WRONG_WAY")
+        return self.get_recent_events(limit=limit, event_type="WRONG_WAY", since_timestamp=since_timestamp)
 
-    def get_statistics_history(self, limit: int = 200) -> pd.DataFrame:
-        """Fetch historical periodic traffic snapshots as a DataFrame."""
-        query = """
+    def get_statistics_history(self, limit: int = 200, since_timestamp: Optional[str] = None) -> pd.DataFrame:
+        """Fetch latest historical periodic traffic snapshots in chronological order."""
+        where_clause = ""
+        params: List[Any] = []
+        if since_timestamp:
+            where_clause = "WHERE timestamp >= ?"
+            params.append(since_timestamp)
+
+        query = f"""
             SELECT id, timestamp, total_vehicles, cars, motorcycles, buses, trucks, density, congestion, wrong_way_count
-            FROM traffic_statistics
+            FROM (
+                SELECT id, timestamp, total_vehicles, cars, motorcycles, buses, trucks, density, congestion, wrong_way_count
+                FROM traffic_statistics
+                {where_clause}
+                ORDER BY id DESC
+                LIMIT ?
+            )
             ORDER BY id ASC
-            LIMIT ?
         """
+        params.append(limit)
         with self._get_connection() as conn:
-            df = pd.read_sql_query(query, conn, params=[limit])
+            df = pd.read_sql_query(query, conn, params=params)
         return df
 
     def get_aggregate_counts(self) -> Dict[str, int]:

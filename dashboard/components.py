@@ -318,13 +318,34 @@ def create_vehicle_distribution_chart(stats: Dict[str, Any]) -> go.Figure:
     is_empty = total_val == 0
 
     if is_empty:
-        values = [1, 1, 1, 1, 1, 1]
-        text_template = "<b>%{label}</b>"
-        hover = "No detections logged yet"
-    else:
-        values = raw_values
-        text_template = "<b>%{label}</b><br>%{value} (%{percent})"
-        hover = None
+        fig = go.Figure()
+        fig.add_annotation(
+            text="<b>No Vehicles Counted Yet</b><br><span style='font-size:12px;color:#94a3b8;'>Run video stream to log vehicle classifications</span>",
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=0.5,
+            showarrow=False,
+            font=dict(size=14, color=THEME["text_primary"]),
+        )
+        fig.update_layout(
+            title=dict(
+                text="<b>Vehicle Classification Distribution</b>",
+                font=dict(color=THEME["text_primary"], size=14),
+            ),
+            template="plotly_dark",
+            margin=dict(l=20, r=20, t=45, b=20),
+            paper_bgcolor=THEME["bg_card"],
+            plot_bgcolor=THEME["bg_card"],
+            height=320,
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+        )
+        return fig
+
+    values = raw_values
+    text_template = "<b>%{label}</b><br>%{value} (%{percent})"
+    hover = None
 
     color_seq = [
         CHART_THEME["car"],
